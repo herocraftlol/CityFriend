@@ -3,6 +3,7 @@ package com.cordfriends.spigot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,6 +23,14 @@ public class FriendsMenuHolder implements InventoryHolder {
 
     public FriendEntry get(int slot) {
         return slots.get(slot);
+    }
+
+    /**
+     * Vue en lecture seule de tous les slots remplis, utilisee pour recharger
+     * les skins de tetes de joueur de facon asynchrone apres l'ouverture du menu.
+     */
+    public Map<Integer, FriendEntry> getSlots() {
+        return Collections.unmodifiableMap(slots);
     }
 
     public void setInventory(Inventory inventory) {

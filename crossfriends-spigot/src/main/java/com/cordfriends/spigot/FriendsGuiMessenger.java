@@ -5,15 +5,16 @@ import com.google.common.io.ByteStreams;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.messaging.PluginMessageListener;
+import com.destroystokyo.paper.profile.PlayerProfile;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -82,14 +83,77 @@ public class FriendsGuiMessenger implements PluginMessageListener {
         }
 
         player.openInventory(inventory);
+        loadSkinsAsync(player, inventory, holder);
+    }
+
+    /**
+     * Recupere le vrai skin de chaque ami en arriere-plan (appel reseau vers Mojang via
+     * PlayerProfile#complete) puis met a jour les tetes deja affichees dans le menu.
+     *
+     * On ne peut pas se contenter de OfflinePlayer#setOwningPlayer : cela n'affiche le bon
+     * skin que si le joueur a deja rejoint CE serveur backend. En completant un PlayerProfile,
+     * on recupere la texture quel que soit le serveur ou l'ami a ete vu pour la derniere fois.
+     * Le tout se fait hors du thread principal car l'appel reseau est bloquant.
+     */
+    private void loadSkinsAsync(Player player, Inventory inventory, FriendsMenuHolder holder) {
+        plugin.getLogger().info("Lancement du chargement asynchrone des skins pour " + holder.getSlots().size() + " ami(s)...");
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            for (Map.Entry<Integer, FriendEntry> mapEntry : holder.getSlots().entrySet()) {
+                int slot = mapEntry.getKey();
+                FriendEntry entry = mapEntry.getValue();
+
+                PlayerProfile profile = Bukkit.createProfile(entry.uuid(), entry.name());
+                boolean fetched;
+                try {
+                    // Appel bloquant (reseau) : recupere les proprietes de texture (skin) aupres de Mojang.
+                    fetched = profile.complete(true);
+                } catch (Exception e) {
+                    // Mojang injoignable, timeout, rate-limit... on garde la tete par defaut pour cet ami.
+                    plugin.getLogger().warning("Echec recuperation skin pour " + entry.name()
+                            + " (" + entry.uuid() + ") : " + e.getClass().getSimpleName() + " - " + e.getMessage());
+                    fetched = false;
+                }
+
+                if (!fetched) {
+                    plugin.getLogger().warning("profile.complete(true) a renvoye false pour " + entry.name()
+                            + " (" + entry.uuid() + "), skin par defaut conserve.");
+                    continue;
+                }
+
+                if (profile.getTextures() == null || profile.getTextures().getSkin() == null) {
+                    plugin.getLogger().warning("Profil complete mais aucune texture de skin trouvee pour "
+                            + entry.name() + " (" + entry.uuid() + ").");
+                }
+
+                Bukkit.getScheduler().runTask(plugin, () -> applySkin(player, inventory, slot, profile));
+            }
+        });
+    }
+
+    private void applySkin(Player player, Inventory inventory, int slot, PlayerProfile profile) {
+        if (!player.isOnline() || !player.getOpenInventory().getTopInventory().equals(inventory)) {
+            plugin.getLogger().info("Skin recupere pour le slot " + slot + " mais menu deja ferme/change, mise a jour ignoree.");
+            return;
+        }
+        ItemStack item = inventory.getItem(slot);
+        if (item == null || item.getType() != Material.PLAYER_HEAD) {
+            return;
+        }
+        SkullMeta meta = (SkullMeta) item.getItemMeta();
+        if (meta == null) {
+            return;
+        }
+        meta.setPlayerProfile(profile);
+        item.setItemMeta(meta);
+        inventory.setItem(slot, item);
+        plugin.getLogger().info("Skin applique avec succes pour le slot " + slot + " (" + profile.getName() + ").");
     }
 
     private ItemStack buildHead(FriendEntry entry) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         if (meta != null) {
-            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(entry.uuid());
-            meta.setOwningPlayer(offlinePlayer);
+            meta.setOwningPlayer(Bukkit.getOfflinePlayer(entry.uuid()));
             meta.setDisplayName((entry.online() ? ChatColor.GREEN : ChatColor.DARK_GRAY) + entry.name());
 
             List<String> lore = new ArrayList<>();
