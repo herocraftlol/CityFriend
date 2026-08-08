@@ -11,10 +11,12 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import com.destroystokyo.paper.profile.PlayerProfile;
+import com.destroystokyo.paper.profile.ProfileProperty;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -59,7 +61,9 @@ public class FriendsGuiMessenger implements PluginMessageListener {
             String name = in.readUTF();
             boolean online = in.readBoolean();
             String server = in.readUTF();
-            entries.add(new FriendEntry(uuid, name, online, server));
+            String skinValue = in.readUTF();
+            String skinSignature = in.readUTF();
+            entries.add(new FriendEntry(uuid, name, online, server, skinValue, skinSignature));
         }
 
         // Les inventaires doivent etre crees/ouverts sur le thread principal du serveur
@@ -96,13 +100,48 @@ public class FriendsGuiMessenger implements PluginMessageListener {
      * Le tout se fait hors du thread principal car l'appel reseau est bloquant.
      */
     private void loadSkinsAsync(Player player, Inventory inventory, FriendsMenuHolder holder) {
-        plugin.getLogger().info("Lancement du chargement asynchrone des skins pour " + holder.getSlots().size() + " ami(s)...");
+        List<Map.Entry<Integer, FriendEntry>> needsLookup = new ArrayList<>();
+        for (Map.Entry<Integer, FriendEntry> mapEntry : holder.getSlots().entrySet()) {
+            if (!mapEntry.getValue().hasCachedSkin()) {
+                needsLookup.add(mapEntry);
+            }
+        }
+        if (needsLookup.isEmpty()) {
+            plugin.getLogger().info("Tous les amis ont un skin en cache (fourni par le proxy), aucune requete Mojang necessaire.");
+            return;
+        }
+
+        plugin.getLogger().info("Skin en cache absent pour " + needsLookup.size()
+                + " ami(s), tentative via SkinsRestorer puis Mojang en arriere-plan...");
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            for (Map.Entry<Integer, FriendEntry> mapEntry : holder.getSlots().entrySet()) {
+            for (Map.Entry<Integer, FriendEntry> mapEntry : needsLookup) {
                 int slot = mapEntry.getKey();
                 FriendEntry entry = mapEntry.getValue();
 
-                PlayerProfile profile = Bukkit.createProfile(entry.uuid(), entry.name());
+                // 1) SkinsRestorer : fonctionne meme hors-ligne, meme pour un compte cracke
+                // sans equivalent Mojang, des lors que ce pseudo a deja un skin enregistre
+                // chez lui (ex : via /skin). Prioritaire car ne necessite aucune reconnexion.
+                Optional<SkinsRestorerBridge.SkinData> srSkin =
+                        SkinsRestorerBridge.lookup(entry.uuid(), entry.name(), plugin.getLogger());
+                if (srSkin.isPresent()) {
+                    PlayerProfile profile = Bukkit.createProfile(entry.uuid(), entry.name());
+                    profile.setProperty(new ProfileProperty("textures", srSkin.get().value(), srSkin.get().signature()));
+                    plugin.getLogger().info("Skin recupere via SkinsRestorer pour " + entry.name() + ".");
+                    Bukkit.getScheduler().runTask(plugin, () -> applySkin(player, inventory, slot, profile));
+                    continue;
+                }
+
+                // 2) A defaut, on retente via Mojang (uniquement utile pour un vrai compte premium,
+                // ou pour un pseudo cracke qui correspondrait par coincidence a un compte premium).
+                // Un UUID de version 4 est un vrai UUID Mojang : on cherche directement par UUID,
+                // ce qui est fiable meme si le pseudo a change depuis. Un UUID de version 3 est
+                // genere localement a partir du pseudo (joueur hors-ligne / cracke) : Mojang n'a
+                // aucune donnee pour cet UUID, donc on cherche par pseudo a la place.
+                boolean realMojangUuid = entry.uuid().version() == 4;
+                PlayerProfile profile = realMojangUuid
+                        ? Bukkit.createProfile(entry.uuid(), entry.name())
+                        : Bukkit.createProfile(entry.name());
+
                 boolean fetched;
                 try {
                     // Appel bloquant (reseau) : recupere les proprietes de texture (skin) aupres de Mojang.
@@ -115,8 +154,9 @@ public class FriendsGuiMessenger implements PluginMessageListener {
                 }
 
                 if (!fetched) {
-                    plugin.getLogger().warning("profile.complete(true) a renvoye false pour " + entry.name()
-                            + " (" + entry.uuid() + "), skin par defaut conserve.");
+                    plugin.getLogger().info((realMojangUuid ? "UUID premium" : "UUID hors-ligne, recherche par pseudo")
+                            + " : aucun skin trouve pour " + entry.name() + " (" + entry.uuid()
+                            + "), tete par defaut conservee.");
                     continue;
                 }
 
@@ -153,7 +193,14 @@ public class FriendsGuiMessenger implements PluginMessageListener {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         if (meta != null) {
-            meta.setOwningPlayer(Bukkit.getOfflinePlayer(entry.uuid()));
+            PlayerProfile profile = Bukkit.createProfile(entry.uuid(), entry.name());
+            if (entry.hasCachedSkin()) {
+                // Texture deja connue (capturee par le proxy a la connexion de cet ami) :
+                // on l'applique directement, sans aucun appel reseau vers Mojang.
+                String signature = entry.skinSignature() != null ? entry.skinSignature() : "";
+                profile.setProperty(new ProfileProperty("textures", entry.skinValue(), signature));
+            }
+            meta.setPlayerProfile(profile);
             meta.setDisplayName((entry.online() ? ChatColor.GREEN : ChatColor.DARK_GRAY) + entry.name());
 
             List<String> lore = new ArrayList<>();

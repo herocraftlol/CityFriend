@@ -21,6 +21,17 @@ public class PlayerProfile {
     private Set<UUID> blocked = new HashSet<>();
     private List<MailMessage> mailbox = new ArrayList<>();
 
+    /**
+     * Derniere texture de skin connue pour ce joueur (propriete "textures" de son
+     * GameProfile, valeur encodee en base64 + sa signature Mojang), capturee a chaque
+     * connexion au proxy. Fonctionne aussi bien pour les comptes premium que crackes
+     * (des lors qu'un systeme quelconque - Mojang ou un plugin de skins - a fourni
+     * une texture au moment de la connexion), et evite de dependre de Mojang pour
+     * afficher la tete du joueur dans le menu d'amis, y compris pour un ami hors-ligne.
+     */
+    private String skinValue;
+    private String skinSignature;
+
     /** Constructeur vide requis par Gson pour la deserialisation. */
     public PlayerProfile() {
     }
@@ -60,5 +71,18 @@ public class PlayerProfile {
 
     public List<MailMessage> getMailbox() {
         return mailbox;
+    }
+
+    public String getSkinValue() {
+        return skinValue;
+    }
+
+    public String getSkinSignature() {
+        return skinSignature;
+    }
+
+    public void setSkin(String skinValue, String skinSignature) {
+        this.skinValue = skinValue;
+        this.skinSignature = skinSignature;
     }
 }

@@ -53,6 +53,11 @@ public final class FriendGuiOpener {
             out.writeUTF(name);
             out.writeBoolean(isOnline);
             out.writeUTF(server);
+            // BungeeCord n'expose pas la propriete "textures" (skin) via une API publique
+            // stable comme le fait Velocity : on envoie des champs vides. Le module Spigot
+            // retombe alors sur la recherche via Mojang (UUID premium ou pseudo) pour ce module.
+            out.writeUTF("");
+            out.writeUTF("");
         }
 
         player.getServer().sendData(CrossFriendsPlugin.CHANNEL, out.toByteArray());

@@ -7,6 +7,7 @@ import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ServerConnection;
+import com.velocitypowered.api.util.GameProfile;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
@@ -52,10 +53,21 @@ public final class FriendGuiOpener {
             Optional<Player> onlineOpt = plugin.getServer().getPlayer(uuid);
             boolean isOnline = onlineOpt.isPresent();
             String server = "";
+            String skinValue = friendProfile.getSkinValue();
+            String skinSignature = friendProfile.getSkinSignature();
             if (isOnline) {
                 Optional<ServerConnection> onlineServerConn = onlineOpt.get().getCurrentServer();
                 if (onlineServerConn.isPresent()) {
                     server = onlineServerConn.get().getServerInfo().getName();
+                }
+                // Ami actuellement connecte : on prefere sa texture "live" (son skin a pu
+                // changer depuis la derniere fois qu'on l'a enregistree, ex : /skin en cours de session).
+                for (GameProfile.Property property : onlineOpt.get().getGameProfileProperties()) {
+                    if ("textures".equals(property.getName())) {
+                        skinValue = property.getValue();
+                        skinSignature = property.getSignature();
+                        break;
+                    }
                 }
             }
 
@@ -63,6 +75,8 @@ public final class FriendGuiOpener {
             out.writeUTF(name);
             out.writeBoolean(isOnline);
             out.writeUTF(server);
+            out.writeUTF(skinValue != null ? skinValue : "");
+            out.writeUTF(skinSignature != null ? skinSignature : "");
         }
 
         serverConnOpt.get().sendPluginMessage(CrossFriendsVelocityPlugin.CHANNEL, out.toByteArray());

@@ -6,7 +6,7 @@
 
     <groupId>com.cordfriends</groupId>
     <artifactId>CordFriends-Spigot</artifactId>
-    <version>1.1.5</version>
+    <version>1.1.8</version>
     <packaging>jar</packaging>
 
     <name>CordFriends-Spigot</name>
@@ -15,8 +15,7 @@
     <parent>
         <groupId>com.cordfriends</groupId>
         <artifactId>cordfriends-parent</artifactId>
-        <version>1.1.5</version>
-        <relativePath>../pom.xml</relativePath>
+        <version>1.1.8</version>
     </parent>
 
     <properties>
@@ -30,6 +29,10 @@
             <id>papermc</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
+        <repository>
+            <id>codemc</id>
+            <url>https://repo.codemc.org/repository/maven-public/</url>
+        </repository>
     </repositories>
 
     <!--
@@ -38,12 +41,24 @@
          dependance par org.spigotmc:spigot-api:1.21-R0.1-SNAPSHOT (necessite
          alors le depot https://hub.spigotmc.org/nexus/content/repositories/snapshots/
          et d'avoir construit spigot-api via BuildTools).
+
+         La dependance SkinsRestorer est en scope "provided" : elle n'est utilisee
+         qu'a la compilation (pour avoir les classes de son API), pas embarquee dans
+         le jar. Le plugin SkinsRestorer doit etre present sur le serveur au demarrage
+         pour que l'integration fonctionne (soft-depend, voir plugin.yml) ; s'il est
+         absent, l'integration est simplement desactivee (voir SkinsRestorerBridge).
     -->
     <dependencies>
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
             <version>1.21.4-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.skinsrestorer</groupId>
+            <artifactId>skinsrestorer-api</artifactId>
+            <version>15.5.2</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
