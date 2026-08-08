@@ -3,6 +3,7 @@ package com.cordfriends.velocity.gui;
 import com.cordfriends.velocity.CrossFriendsVelocityPlugin;
 import com.cordfriends.velocity.data.DataManager;
 import com.cordfriends.velocity.data.PlayerProfile;
+import com.cordfriends.velocity.skin.SkinsRestorerBridge;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import com.velocitypowered.api.proxy.Player;
@@ -68,6 +69,17 @@ public final class FriendGuiOpener {
                         skinSignature = property.getSignature();
                         break;
                     }
+                }
+            } else {
+                // Ami hors-ligne : on interroge SkinsRestorer (sa base de skins vit sur CE proxy
+                // en mode "server.proxyMode.api"), qui repond immediatement sans avoir besoin
+                // que l'ami se reconnecte - contrairement a notre propre cache, qui ne se remplit
+                // qu'a la connexion. Prioritaire sur notre cache s'il repond, car plus a jour.
+                Optional<SkinsRestorerBridge.SkinData> srSkin =
+                        SkinsRestorerBridge.lookup(plugin.getServer(), uuid, name, plugin.getLogger());
+                if (srSkin.isPresent()) {
+                    skinValue = srSkin.get().value();
+                    skinSignature = srSkin.get().signature();
                 }
             }
 

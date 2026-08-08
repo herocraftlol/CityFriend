@@ -1,33 +1,33 @@
-# 🤝 CordFriends v1.1.8 — Système d'Amis pour BungeeCord & Velocity
+# 🤝 CordFriends v1.1.9 — Système d'Amis pour BungeeCord & Velocity
 
 Transformez votre réseau Minecraft avec un système d'amis complet, des messages privés inter-serveurs, un courrier hors-ligne et une interface graphique intuitive — le tout synchronisé sur l'ensemble de votre réseau ! 🚀
 
 CordFriends s'installe sur votre proxy (**BungeeCord** ou **Velocity**) et s'accompagne d'un petit module **Spigot/Paper** à placer sur chaque serveur backend pour afficher le menu d'amis en jeu. Une seule configuration centralisée suffit pour profiter de toutes les fonctionnalités entre tous vos serveurs.
 
+> 🔎 **Ce plugin fait quoi ?** Il ajoute un vrai système social à votre réseau : liste d'amis persistante, demandes/blocages, messagerie privée instantanée entre serveurs, courrier hors-ligne, et un menu graphique en jeu (têtes de joueurs, skins, rejoindre un ami en un clic). Tout est piloté depuis le proxy, donc unifié sur l'ensemble du réseau.
+
 ---
 
-## ✨ Nouveautés de la version 1.1.8 — Skins v5 + SkinsRestorer
+## ✨ Nouveautés de la version 1.1.9 — Skins v6 : SkinsRestorer côté Proxy
 
-Cette version apporte une refonte complète de l'affichage des skins dans le menu d'amis, pour des têtes de joueurs toujours à jour, même hors-ligne.
+Cette version déplace la recherche des skins **SkinsRestorer directement sur le proxy** (Velocity), là où vit réellement la base de données des skins en mode multi-serveurs. Résultat : des skins plus fiables, plus à jour, et récupérables même pour des amis **hors-ligne**.
 
-### 🖼️ Intégration SkinsRestorer
-- **Pont natif vers [SkinsRestorer](https://github.com/SkinsRestorer/SkinsRestorer)** : les skins définis via `/skin` sont maintenant récupérés automatiquement, même pour des comptes hors-ligne / crackés qui n'ont pas d'équivalent premium.
-- **Fonctionnement hors-ligne** : contrairement à une simple recherche Mojang, SkinsRestorer garde sa propre base de skins par UUID/pseudo, interrogeable à tout moment — y compris quand l'ami est déconnecté.
-- **Intégration optionnelle et sûre** : SkinsRestorer est déclaré en `softdepend`. S'il n'est pas installé (ou si sa version diffère), le menu d'amis continue de fonctionner normalement, l'integration est simplement désactivée.
+### 🖥️ SkinsRestorer interrogé depuis le proxy
+- **Nouveau pont proxy** (`SkinsRestorerBridge` côté Velocity) : le proxy interroge lui-même `PlayerStorage` de SkinsRestorer. En mode proxy (`server.proxyMode.api` côté backend), la base de skins est sur le proxy — c'est donc ici qu'il faut la lire, pas depuis les serveurs Paper.
+- **Skins pour les amis hors-ligne** : jusqu'ici, le cache interne du proxy ne se remplissait qu'à la connexion d'un joueur. Désormais, `FriendGuiOpener` demande aussi le skin à SkinsRestorer pour les amis déconnectés, qui répond instantanément sans attendre une reconnexion.
+- **Priorité à la fraîcheur** : pour un ami en ligne, la texture « live » reste privilégiée (un `/skin` en cours de session est reflété immédiatement) ; pour un ami hors-ligne, SkinsRestorer prend le relais.
 
-### ⚡ Cache des skins par le proxy
-- **Capture à la connexion** : le proxy (Velocity) enregistre la propriété `textures` du GameProfile de chaque joueur dès sa connexion. Ces skins sont ensuite réutilisés instantanément dans le menu, sans aucun appel réseau.
-- **Affichage immédiat** : les amis dont le skin est déjà en cache apparaissent avec la bonne tête dès l'ouverture du menu.
+### 🔗 Dépendance déclarée et optionnelle
+- SkinsRestorer est maintenant déclaré comme **dépendance optionnelle** dans le descripteur Velocity (`@Dependency(id = "skinsrestorer", optional = true)`), pour un chargement propre et un message explicite si le plugin est absent.
 
-### 🔍 Recherche intelligente (fallback en arrière-plan)
-Pour les amis sans skin en cache, le module Spigot/Paper tente, en arrière-plan et sans bloquer le serveur :
-1. **SkinsRestorer** en priorité (comptes hors-ligne inclus) ;
-2. puis **Mojang** par UUID (compte premium) ou par pseudo (compte hors-ligne généré localement).
+### 🔧 Corrections techniques & robustesse
+- **Moins de fausses alertes côté Spigot** : quand SkinsRestorer tourne en mode proxy, la recherche locale sur le backend lève une `IllegalStateException` attendue — elle est désormais silencieuse (`logger.fine`) au lieu de polluer les logs, puisque le proxy fait déjà le travail.
+- **Correction de l'API de profil Paper** (`com.destroystokyo.paper.profile`) pour Minecraft 1.21+.
+- **Correction du logger Velocity** (SLF4J : `warn` au lieu de `warning`) lors de la capture des skins.
+- Protocole de plugin-messaging inchangé et rétro-compatible : le proxy calcule le skin et l'envoie au menu Spigot via le canal `crossfriends:main`.
 
-### 🔧 Corrections techniques
-- Correction de l'API de profil Paper (`com.destroystokyo.paper.profile`) pour Minecraft 1.21+.
-- Correction du logger Velocity (SLF4J) lors de la capture des skins.
-- Protocole de plugin-messaging étendu pour transmettre les skins du proxy vers le menu Spigot.
+### 📦 Mis à jour également
+- Numéro de version unifié à **1.1.9** (parent, modules Bungee/Velocity/Spigot, `plugin.yml`, descripteur `@Plugin`).
 
 ---
 
@@ -35,10 +35,10 @@ Pour les amis sans skin en cache, le module Spigot/Paper tente, en arrière-plan
 
 | Fichier | Rôle |
 |---------|------|
-| `CordFriends-Velocity-1.1.8.jar` | Plugin proxy pour **Velocity** |
-| `CordFriends-Bungee-1.1.8.jar` | Plugin proxy pour **BungeeCord** |
-| `CordFriends-Spigot-1.1.8.jar` | Module interface graphique pour **Spigot/Paper** (à installer sur chaque serveur backend) |
-| `CordFriends-v1.1.8-src.tar.gz` | Code source complet de la v1.1.8 |
+| `CordFriends-Velocity-1.1.9.jar` | Plugin proxy pour **Velocity** |
+| `CordFriends-Bungee-1.1.9.jar` | Plugin proxy pour **BungeeCord** |
+| `CordFriends-Spigot-1.1.9.jar` | Module interface graphique pour **Spigot/Paper** (à installer sur chaque serveur backend) |
+| `CordFriends-v1.1.9-src.tar.gz` | Code source complet de la v1.1.9 |
 
 > ⚠️ Les deux parties (**Proxy + Spigot/Paper**) sont obligatoires pour un fonctionnement complet.
 
@@ -47,14 +47,14 @@ Pour les amis sans skin en cache, le module Spigot/Paper tente, en arrière-plan
 ## 📥 Installation
 
 ### 🔄 Pour Velocity
-1️⃣ Placez `CordFriends-Velocity-1.1.8.jar` dans le dossier `/plugins` de Velocity.
-2️⃣ Installez `CordFriends-Spigot-1.1.8.jar` sur **chaque** serveur backend.
-3️⃣ *(Optionnel)* Ajoutez **SkinsRestorer** sur vos serveurs backend pour activer l'affichage des skins personnalisés.
+1️⃣ Placez `CordFriends-Velocity-1.1.9.jar` dans le dossier `/plugins` de Velocity.
+2️⃣ Installez `CordFriends-Spigot-1.1.9.jar` sur **chaque** serveur backend.
+3️⃣ *(Optionnel)* Ajoutez **SkinsRestorer** sur votre proxy (et activez `server.proxyMode.api` côté backend) pour activer l'affichage des skins personnalisés.
 4️⃣ Redémarrez Velocity et tous vos serveurs.
 
 ### 🟢 Pour BungeeCord
-1️⃣ Placez `CordFriends-Bungee-1.1.8.jar` dans le dossier `/plugins` de BungeeCord.
-2️⃣ Installez `CordFriends-Spigot-1.1.8.jar` sur **chaque** serveur backend.
+1️⃣ Placez `CordFriends-Bungee-1.1.9.jar` dans le dossier `/plugins` de BungeeCord.
+2️⃣ Installez `CordFriends-Spigot-1.1.9.jar` sur **chaque** serveur backend.
 3️⃣ *(Optionnel)* Ajoutez **SkinsRestorer** sur vos serveurs backend.
 4️⃣ Redémarrez le proxy et tous vos serveurs.
 
@@ -146,7 +146,7 @@ op: execute as @s run friend gui
 | Courrier hors-ligne | ✅ | ✅ |
 | Interface graphique | ✅ | ✅ |
 | Cache des skins | ✅ (via Spigot) | ✅ (proxy) |
-| Intégration SkinsRestorer | ✅ | ✅ |
+| Intégration SkinsRestorer | ✅ | ✅ (proxy, v6) |
 
 ---
 
@@ -167,9 +167,9 @@ cd crossfriends-velocity && mvn clean package
 ```
 
 Les jars produits se trouvent dans `*/target/` :
-- `crossfriends-bungee/target/CordFriends-Bungee-1.1.8.jar`
-- `crossfriends-velocity/target/CordFriends-Velocity-1.1.8.jar`
-- `crossfriends-spigot/target/CordFriends-Spigot-1.1.8.jar`
+- `crossfriends-bungee/target/CordFriends-Bungee-1.1.9.jar`
+- `crossfriends-velocity/target/CordFriends-Velocity-1.1.9.jar`
+- `crossfriends-spigot/target/CordFriends-Spigot-1.1.9.jar`
 
 **Pré-requis** : JDK 21 et Maven 3.9+.
 

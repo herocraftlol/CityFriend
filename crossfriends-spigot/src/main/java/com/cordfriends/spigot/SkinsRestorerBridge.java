@@ -56,9 +56,17 @@ final class SkinsRestorerBridge {
             SkinProperty skinProperty = property.get();
             return Optional.of(new SkinData(skinProperty.getValue(), skinProperty.getSignature()));
         } catch (Throwable t) {
-            logger.warning("Integration SkinsRestorer indisponible pour " + name
-                    + " (" + t.getClass().getSimpleName() + " : " + t.getMessage()
-                    + "). Verifiez que la version installee correspond a l'API compilee (15.5.2).");
+            String msg = String.valueOf(t.getMessage());
+            if (t instanceof IllegalStateException && msg.contains("proxyMode")) {
+                // Attendu si SkinsRestorer tourne en mode proxy (base de donnees sur le
+                // proxy Velocity/Bungee) : c'est normal, le proxy fait deja cette recherche
+                // avant d'envoyer les donnees au serveur Paper. Pas la peine d'alerter.
+                logger.fine("SkinsRestorer en mode proxy sur ce serveur, recherche locale ignoree pour " + name + ".");
+            } else {
+                logger.warning("Integration SkinsRestorer indisponible pour " + name
+                        + " (" + t.getClass().getSimpleName() + " : " + t.getMessage()
+                        + "). Verifiez que la version installee correspond a l'API compilee (15.5.2).");
+            }
             return Optional.empty();
         }
     }

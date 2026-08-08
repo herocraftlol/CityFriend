@@ -31,7 +31,7 @@ continue de fonctionner tel quel derriere un proxy Velocity.
 mvn -pl crossfriends-velocity -am clean package
 ```
 
-Le jar produit est `crossfriends-velocity/target/CordFriends-Velocity-1.1.8.jar`,
+Le jar produit est `crossfriends-velocity/target/CordFriends-Velocity-1.1.2.jar`,
 a placer dans le dossier `plugins/` de Velocity.
 
 > **Note sur la version de `velocity-api`** : le pom utilise

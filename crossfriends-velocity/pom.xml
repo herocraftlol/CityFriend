@@ -6,7 +6,7 @@
 
     <groupId>com.cordfriends</groupId>
     <artifactId>CordFriends-Velocity</artifactId>
-    <version>1.1.8</version>
+    <version>1.1.9</version>
     <packaging>jar</packaging>
 
     <name>CordFriends-Velocity</name>
@@ -15,7 +15,7 @@
     <parent>
         <groupId>com.cordfriends</groupId>
         <artifactId>cordfriends-parent</artifactId>
-        <version>1.1.8</version>
+        <version>1.1.9</version>
     </parent>
 
     <properties>
@@ -29,6 +29,10 @@
         <repository>
             <id>papermc</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+        <repository>
+            <id>codemc</id>
+            <url>https://repo.codemc.org/repository/maven-public/</url>
         </repository>
     </repositories>
 
@@ -44,6 +48,18 @@
             <groupId>com.velocitypowered</groupId>
             <artifactId>velocity-api</artifactId>
             <version>3.4.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <!--
+             SkinsRestorer, en mode "provided" comme cote Spigot. En mode proxy
+             (server.proxyMode.api active cote backend), c'est ICI, sur le proxy,
+             que vit la vraie base de donnees des skins - c'est donc ici qu'il
+             faut interroger PlayerStorage, pas depuis les serveurs Paper.
+        -->
+        <dependency>
+            <groupId>net.skinsrestorer</groupId>
+            <artifactId>skinsrestorer-api</artifactId>
+            <version>15.5.2</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
