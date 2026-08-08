@@ -1,4 +1,4 @@
-# 🤝 CordFriends v1.1.6 - Système d'Amis pour BungeeCord & Velocity
+# 🤝 CordFriends v1.1.7 - Système d'Amis pour BungeeCord & Velocity
 
 Transformez votre réseau Minecraft avec un système d'amis complet, des messages privés inter-serveurs et une interface graphique intuitive ! 🚀
 
@@ -6,15 +6,15 @@ Transformez votre réseau Minecraft avec un système d'amis complet, des message
 
 ---
 
-## ✨ Nouveautés de la version 1.1.6
+## ✨ Nouveautés de la version 1.1.7
 
-### 🖼️ Système de Skins Amélioré v2
-- **API Paper corrigée** : Mise à jour vers la dernière API Paper pour une meilleure compatibilité avec Minecraft 1.21+
-- **Chargement asynchrone optimisé** : Les skins des amis sont récupérés directement depuis les serveurs de Mojang pour un affichage parfait
-- **Gestion des UUID** : Support amélioré des UUID version 3 (hors-ligne) et version 4 (premium) pour une détection plus fiable
+### 🖼️ Système de Skins Amélioré v3
+- **API Paper corrigée** : Mise à jour complète vers la dernière API Paper pour Minecraft 1.21+
+- **Cache des skins** : Les skins sont maintenant mis en cache pour un chargement plus rapide
+- **Support des skins personnalisés** : Gestion avancée des textures et signatures
 
 ### 🔧 Améliorations Techniques
-- Refactorisation du code pour une meilleure maintenabilité
+- Correction complète de l'import API `com.destroystokyo.paper.profile`
 - Meilleure gestion des erreurs lors des appels réseau
 - Support de Minecraft 1.21
 
@@ -174,9 +174,9 @@ Cela permet de profiter de toutes les fonctionnalités entre tous vos serveurs, 
 Téléchargez les fichiers JAR depuis la page des [releases](https://github.com/herocraftlol/CityFriend/releases).
 
 Versions disponibles :
-- `CordFriends-Velocity-1.1.6.jar` pour Velocity
-- `CordFriends-Bungee-1.1.6.jar` pour BungeeCord
-- `CordFriends-Spigot-1.1.6.jar` pour Spigot/Paper
+- `CordFriends-Velocity-1.1.7.jar` pour Velocity
+- `CordFriends-Bungee-1.1.7.jar` pour BungeeCord
+- `CordFriends-Spigot-1.1.7.jar` pour Spigot/Paper
 
 ## 🛠️ Compilation
 
