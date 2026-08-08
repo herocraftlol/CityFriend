@@ -1,5 +1,7 @@
 package com.cordfriends.spigot;
 
+import com.destroystokyo.paper.profile.PlayerProfile;
+import com.destroystokyo.paper.profile.ProfileProperty;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteStreams;
 import org.bukkit.Bukkit;
@@ -10,7 +12,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.messaging.PluginMessageListener;
-import com.destroystokyo.paper.profile.PlayerProfile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -102,11 +103,24 @@ public class FriendsGuiMessenger implements PluginMessageListener {
                 int slot = mapEntry.getKey();
                 FriendEntry entry = mapEntry.getValue();
 
-                PlayerProfile profile = Bukkit.createProfile(entry.uuid(), entry.name());
+                // Un UUID de version 4 est un vrai UUID Mojang (compte premium) : on peut chercher
+                // directement par UUID, ce qui est fiable meme si le pseudo a change depuis.
+                // Un UUID de version 3 est genere localement a partir du pseudo (joueur en mode
+                // hors-ligne / cracke) : Mojang n'a aucune donnee pour cet UUID, donc on retente
+                // la recherche par pseudo a la place (fonctionne si ce pseudo correspond a un
+                // compte premium existant ; sinon aucun skin reel n'est recuperable de toute facon).
+                boolean realMojangUuid = entry.uuid().version() == 4;
+                PlayerProfile profile;
+                if (realMojangUuid) {
+                    profile = Bukkit.createProfile(entry.uuid(), entry.name());
+                } else {
+                    profile = Bukkit.createProfile(entry.name());
+                }
+
                 boolean fetched;
                 try {
                     // Appel bloquant (reseau) : recupere les proprietes de texture (skin) aupres de Mojang.
-                    fetched = profile.complete(true);
+                    fetched = profile.complete();
                 } catch (Exception e) {
                     // Mojang injoignable, timeout, rate-limit... on garde la tete par defaut pour cet ami.
                     plugin.getLogger().warning("Echec recuperation skin pour " + entry.name()
@@ -115,8 +129,9 @@ public class FriendsGuiMessenger implements PluginMessageListener {
                 }
 
                 if (!fetched) {
-                    plugin.getLogger().warning("profile.complete(true) a renvoye false pour " + entry.name()
-                            + " (" + entry.uuid() + "), skin par defaut conserve.");
+                    plugin.getLogger().info((realMojangUuid ? "UUID premium" : "UUID hors-ligne, recherche par pseudo")
+                            + " : aucun skin trouve pour " + entry.name() + " (" + entry.uuid()
+                            + "), tete par defaut conservee.");
                     continue;
                 }
 
