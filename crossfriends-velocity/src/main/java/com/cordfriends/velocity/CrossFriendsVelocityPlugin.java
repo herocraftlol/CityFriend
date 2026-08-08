@@ -40,7 +40,7 @@ import java.util.regex.Pattern;
 @Plugin(
         id = "cordfriends",
         name = "CordFriends",
-        version = "1.1.2",
+        version = "1.1.7",
         description = "Systeme d'amis, messages prives et courrier hors-ligne inter-serveur pour Velocity",
         authors = {"CordFriends"}
 )

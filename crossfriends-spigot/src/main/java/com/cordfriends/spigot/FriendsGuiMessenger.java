@@ -1,5 +1,7 @@
 package com.cordfriends.spigot;
 
+import com.destroystokyo.paper.profile.PlayerProfile;
+import com.destroystokyo.paper.profile.ProfileProperty;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteStreams;
 import org.bukkit.Bukkit;
@@ -10,7 +12,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.messaging.PluginMessageListener;
-import com.destroystokyo.paper.profile.PlayerProfile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +60,9 @@ public class FriendsGuiMessenger implements PluginMessageListener {
             String name = in.readUTF();
             boolean online = in.readBoolean();
             String server = in.readUTF();
-            entries.add(new FriendEntry(uuid, name, online, server));
+            String skinValue = in.readUTF();
+            String skinSignature = in.readUTF();
+            entries.add(new FriendEntry(uuid, name, online, server, skinValue, skinSignature));
         }
 
         // Les inventaires doivent etre crees/ouverts sur le thread principal du serveur
@@ -96,17 +99,39 @@ public class FriendsGuiMessenger implements PluginMessageListener {
      * Le tout se fait hors du thread principal car l'appel reseau est bloquant.
      */
     private void loadSkinsAsync(Player player, Inventory inventory, FriendsMenuHolder holder) {
-        plugin.getLogger().info("Lancement du chargement asynchrone des skins pour " + holder.getSlots().size() + " ami(s)...");
+        List<Map.Entry<Integer, FriendEntry>> needsLookup = new ArrayList<>();
+        for (Map.Entry<Integer, FriendEntry> mapEntry : holder.getSlots().entrySet()) {
+            if (!mapEntry.getValue().hasCachedSkin()) {
+                needsLookup.add(mapEntry);
+            }
+        }
+        if (needsLookup.isEmpty()) {
+            plugin.getLogger().info("Tous les amis ont un skin en cache (fourni par le proxy), aucune requete Mojang necessaire.");
+            return;
+        }
+
+        plugin.getLogger().info("Skin en cache absent pour " + needsLookup.size()
+                + " ami(s), tentative de recuperation via Mojang en arriere-plan...");
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            for (Map.Entry<Integer, FriendEntry> mapEntry : holder.getSlots().entrySet()) {
+            for (Map.Entry<Integer, FriendEntry> mapEntry : needsLookup) {
                 int slot = mapEntry.getKey();
                 FriendEntry entry = mapEntry.getValue();
 
-                PlayerProfile profile = Bukkit.createProfile(entry.uuid(), entry.name());
+                // Un UUID de version 4 est un vrai UUID Mojang (compte premium) : on peut chercher
+                // directement par UUID, ce qui est fiable meme si le pseudo a change depuis.
+                // Un UUID de version 3 est genere localement a partir du pseudo (joueur en mode
+                // hors-ligne / cracke) : Mojang n'a aucune donnee pour cet UUID, donc on retente
+                // la recherche par pseudo a la place (fonctionne si ce pseudo correspond a un
+                // compte premium existant ; sinon aucun skin reel n'est recuperable de toute facon).
+                boolean realMojangUuid = entry.uuid().version() == 4;
+                PlayerProfile profile = realMojangUuid
+                        ? Bukkit.createProfile(entry.uuid(), entry.name())
+                        : Bukkit.createProfile(entry.name());
+
                 boolean fetched;
                 try {
                     // Appel bloquant (reseau) : recupere les proprietes de texture (skin) aupres de Mojang.
-                    fetched = profile.complete(true);
+                    fetched = profile.complete();
                 } catch (Exception e) {
                     // Mojang injoignable, timeout, rate-limit... on garde la tete par defaut pour cet ami.
                     plugin.getLogger().warning("Echec recuperation skin pour " + entry.name()
@@ -115,8 +140,9 @@ public class FriendsGuiMessenger implements PluginMessageListener {
                 }
 
                 if (!fetched) {
-                    plugin.getLogger().warning("profile.complete(true) a renvoye false pour " + entry.name()
-                            + " (" + entry.uuid() + "), skin par defaut conserve.");
+                    plugin.getLogger().info((realMojangUuid ? "UUID premium" : "UUID hors-ligne, recherche par pseudo")
+                            + " : aucun skin trouve pour " + entry.name() + " (" + entry.uuid()
+                            + "), tete par defaut conservee.");
                     continue;
                 }
 
@@ -153,7 +179,14 @@ public class FriendsGuiMessenger implements PluginMessageListener {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         if (meta != null) {
-            meta.setOwningPlayer(Bukkit.getOfflinePlayer(entry.uuid()));
+            PlayerProfile profile = Bukkit.createProfile(entry.uuid(), entry.name());
+            if (entry.hasCachedSkin()) {
+                // Texture deja connue (capturee par le proxy a la connexion de cet ami) :
+                // on l'applique directement, sans aucun appel reseau vers Mojang.
+                String signature = entry.skinSignature() != null ? entry.skinSignature() : "";
+                profile.setProperty(new ProfileProperty("textures", entry.skinValue(), signature));
+            }
+            meta.setPlayerProfile(profile);
             meta.setDisplayName((entry.online() ? ChatColor.GREEN : ChatColor.DARK_GRAY) + entry.name());
 
             List<String> lore = new ArrayList<>();
