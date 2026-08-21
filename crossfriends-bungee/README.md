@@ -39,7 +39,7 @@ notify-on-join: true
 
 ## L'interface graphique (`/friend gui`)
 
-Le proxy seul ne peut pas ouvrir d'inventaire en jeu : c'est le rôle du module **CordFriends-Spigot**, à installer en plus sur chaque serveur backend. `/friend gui` ouvre un inventaire listant vos amis (tête de joueur, statut, serveur). Clic gauche sur un ami en ligne = vous êtes transféré sur son serveur puis téléporté à côté de lui. Clic droit = un lien cliquable pré-remplit votre chat avec `/msg <ami> ` pour lui écrire directement. Voir le README du dossier `CordFriends-Spigot` pour l'installation.
+Le proxy seul ne peut pas ouvrir d'inventaire en jeu : c'est le rôle du module **CordFriends-Spigot**, à installer en plus sur chaque serveur backend. `/friend gui` ouvre un inventaire listant vos amis (tête de joueur, statut, serveur). Clic gauche sur un ami en ligne = vous êtes transféré sur son serveur (aucune téléportation à ses coordonnées : vous arrivez comme si vous rejoigniez ce serveur normalement). Clic droit = un lien cliquable pré-remplit votre chat avec `/msg <ami> ` pour lui écrire directement. Voir le README du dossier `CordFriends-Spigot` pour l'installation.
 
 ## Stockage des données
 

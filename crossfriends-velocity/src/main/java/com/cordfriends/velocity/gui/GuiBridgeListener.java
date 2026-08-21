@@ -4,28 +4,26 @@ import com.cordfriends.velocity.CrossFriendsVelocityPlugin;
 import com.cordfriends.velocity.data.DataManager;
 import com.cordfriends.velocity.data.PlayerProfile;
 import com.google.common.io.ByteArrayDataInput;
-import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PluginMessageEvent;
-import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Pont entre le proxy et le module Spigot d'interface (menu d'amis affiche en jeu) :
  * - recoit la demande "rejoindre cet ami" envoyee par le module Spigot via plugin-messaging ;
- * - bascule le joueur sur le bon serveur (le proxy est seul a pouvoir le faire) ;
- * - une fois la connexion etablie, indique au serveur d'arrivee qui teleporter.
+ * - bascule le joueur sur le bon serveur (le proxy est seul a pouvoir le faire).
+ *
+ * Rejoindre un ami ne fait que basculer sur le meme serveur (comme si on rejoignait
+ * ce serveur/monde normalement) : il n'y a aucune teleportation aux coordonnees exactes
+ * de l'ami, ni sur ce serveur ni sur un autre.
  *
  * Le module Spigot, lui, se contente d'afficher l'inventaire et de relayer les clics :
  * il n'a pas besoin de connaitre la logique d'amitie / blocage, deja verifiee ici.
@@ -33,9 +31,6 @@ import java.util.concurrent.TimeUnit;
 public class GuiBridgeListener {
 
     private final CrossFriendsVelocityPlugin plugin;
-
-    /** Joueur en attente de teleportation -> UUID de l'ami a rejoindre, une fois le changement de serveur effectue. */
-    private final Map<UUID, UUID> pendingTeleports = new ConcurrentHashMap<>();
 
     public GuiBridgeListener(CrossFriendsVelocityPlugin plugin) {
         this.plugin = plugin;
@@ -105,45 +100,15 @@ public class GuiBridgeListener {
 
         Optional<ServerConnection> requesterServerOpt = requester.getCurrentServer();
         if (requesterServerOpt.isPresent() && requesterServerOpt.get().getServer().equals(targetServer)) {
-            // Deja sur le meme serveur : pas besoin de changer, on demande directement la teleportation
-            sendTeleportTo(requester, friendName);
+            // Deja sur le meme serveur/monde que l'ami : rien a faire, on ne teleporte jamais
+            // vers ses coordonnees exactes.
+            requester.sendMessage(Component.text("Vous etes deja sur le meme serveur que " + friendName + ".", NamedTextColor.YELLOW));
             return;
         }
 
-        pendingTeleports.put(requester.getUniqueId(), friendUuid);
+        // Serveur different : on se contente de basculer dessus, exactement comme si le joueur
+        // le rejoignait normalement (aucune teleportation aux coordonnees de l'ami une fois arrive).
         requester.sendMessage(Component.text("Connexion vers le serveur de " + friendName + "...", NamedTextColor.AQUA));
         requester.createConnectionRequest(targetServer).connect();
-    }
-
-    @Subscribe
-    public void onServerConnected(ServerConnectedEvent event) {
-        Player player = event.getPlayer();
-        UUID friendUuid = pendingTeleports.remove(player.getUniqueId());
-        if (friendUuid == null) {
-            return;
-        }
-
-        Optional<Player> friendPlayerOpt = plugin.getServer().getPlayer(friendUuid);
-        if (friendPlayerOpt.isEmpty()) {
-            // L'ami s'est deconnecte pendant le transfert, rien a faire de plus
-            return;
-        }
-        String friendName = friendPlayerOpt.get().getUsername();
-
-        // Petit delai de securite pour laisser le canal de plugin-messaging s'initialiser sur le nouveau serveur
-        plugin.getServer().getScheduler().buildTask(plugin, () -> sendTeleportTo(player, friendName))
-                .delay(1, TimeUnit.SECONDS)
-                .schedule();
-    }
-
-    private void sendTeleportTo(Player player, String friendName) {
-        Optional<ServerConnection> serverConnOpt = player.getCurrentServer();
-        if (serverConnOpt.isEmpty()) {
-            return;
-        }
-        ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        out.writeUTF("TELEPORT_TO");
-        out.writeUTF(friendName);
-        serverConnOpt.get().sendPluginMessage(CrossFriendsVelocityPlugin.CHANNEL, out.toByteArray());
     }
 }

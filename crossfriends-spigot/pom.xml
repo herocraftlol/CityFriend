@@ -6,7 +6,7 @@
 
     <groupId>com.cordfriends</groupId>
     <artifactId>CordFriends-Spigot</artifactId>
-    <version>1.1.9</version>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
 
     <name>CordFriends-Spigot</name>
@@ -15,7 +15,7 @@
     <parent>
         <groupId>com.cordfriends</groupId>
         <artifactId>cordfriends-parent</artifactId>
-        <version>1.1.9</version>
+        <version>1.2.0</version>
     </parent>
 
     <properties>

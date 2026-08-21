@@ -21,8 +21,10 @@ import java.util.UUID;
 
 /**
  * Recoit les messages venant du proxy BungeeCord sur le canal "crossfriends:main" :
- * - OPEN_GUI : construit et ouvre l'inventaire listant les amis du joueur ;
- * - TELEPORT_TO : teleporte le joueur (qui vient d'arriver sur ce serveur) vers son ami.
+ * - OPEN_GUI : construit et ouvre l'inventaire listant les amis du joueur.
+ *
+ * Rejoindre un ami ne fait que basculer le joueur sur le meme serveur cote proxy ;
+ * ce module n'effectue plus aucune teleportation aux coordonnees de l'ami une fois arrive.
  */
 public class FriendsGuiMessenger implements PluginMessageListener {
 
@@ -48,8 +50,6 @@ public class FriendsGuiMessenger implements PluginMessageListener {
 
         if ("OPEN_GUI".equals(action)) {
             handleOpenGui(player, in);
-        } else if ("TELEPORT_TO".equals(action)) {
-            handleTeleportTo(player, in);
         }
     }
 
@@ -219,18 +219,5 @@ public class FriendsGuiMessenger implements PluginMessageListener {
             item.setItemMeta(meta);
         }
         return item;
-    }
-
-    private void handleTeleportTo(Player player, ByteArrayDataInput in) {
-        String friendName = in.readUTF();
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            Player friend = Bukkit.getPlayerExact(friendName);
-            if (friend != null) {
-                player.teleport(friend.getLocation());
-                player.sendMessage(ChatColor.GREEN + "Vous avez rejoint " + friendName + " !");
-            } else {
-                player.sendMessage(ChatColor.RED + "Votre ami n'est plus sur ce serveur.");
-            }
-        });
     }
 }

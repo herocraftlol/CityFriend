@@ -41,7 +41,7 @@ import java.util.regex.Pattern;
 @Plugin(
         id = "cordfriends",
         name = "CordFriends",
-        version = "1.1.9",
+        version = "1.2.0",
         description = "Systeme d'amis, messages prives et courrier hors-ligne inter-serveur pour Velocity",
         authors = {"CordFriends"},
         dependencies = {

@@ -4,27 +4,25 @@ import com.cordfriends.CrossFriendsPlugin;
 import com.cordfriends.data.DataManager;
 import com.cordfriends.data.PlayerProfile;
 import com.google.common.io.ByteArrayDataInput;
-import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.connection.Server;
 import net.md_5.bungee.api.event.PluginMessageEvent;
-import net.md_5.bungee.api.event.ServerSwitchEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.event.EventHandler;
 
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Pont entre le proxy et le module Spigot d'interface (menu d'amis affiche en jeu) :
  * - recoit la demande "rejoindre cet ami" envoyee par le module Spigot via plugin-messaging ;
- * - bascule le joueur sur le bon serveur (le proxy est seul a pouvoir le faire) ;
- * - une fois la connexion etablie, indique au serveur d'arrivee qui teleporter.
+ * - bascule le joueur sur le bon serveur (le proxy est seul a pouvoir le faire).
+ *
+ * Rejoindre un ami ne fait que basculer sur le meme serveur (comme si on rejoignait
+ * ce serveur/monde normalement) : il n'y a aucune teleportation aux coordonnees exactes
+ * de l'ami, ni sur ce serveur ni sur un autre.
  *
  * Le module Spigot, lui, se contente d'afficher l'inventaire et de relayer les clics :
  * il n'a pas besoin de connaitre la logique d'amitie / blocage, deja verifiee ici.
@@ -32,9 +30,6 @@ import java.util.concurrent.TimeUnit;
 public class GuiBridgeListener implements Listener {
 
     private final CrossFriendsPlugin plugin;
-
-    /** Joueur en attente de teleportation -> UUID de l'ami a rejoindre, une fois le changement de serveur effectue. */
-    private final Map<UUID, UUID> pendingTeleports = new ConcurrentHashMap<>();
 
     public GuiBridgeListener(CrossFriendsPlugin plugin) {
         this.plugin = plugin;
@@ -102,43 +97,15 @@ public class GuiBridgeListener implements Listener {
         String friendName = friendPlayer.getName();
 
         if (requester.getServer() != null && requester.getServer().getInfo().equals(targetServer)) {
-            // Deja sur le meme serveur : pas besoin de changer, on demande directement la teleportation
-            sendTeleportTo(requester, friendName);
+            // Deja sur le meme serveur/monde que l'ami : rien a faire, on ne teleporte jamais
+            // vers ses coordonnees exactes.
+            requester.sendMessage(ChatColor.YELLOW + "Vous etes deja sur le meme serveur que " + friendName + ".");
             return;
         }
 
-        pendingTeleports.put(requester.getUniqueId(), friendUuid);
+        // Serveur different : on se contente de basculer dessus, exactement comme si le joueur
+        // le rejoignait normalement (aucune teleportation aux coordonnees de l'ami une fois arrive).
         requester.sendMessage(ChatColor.AQUA + "Connexion vers le serveur de " + friendName + "...");
         requester.connect(targetServer);
-    }
-
-    @EventHandler
-    public void onServerSwitch(ServerSwitchEvent event) {
-        ProxiedPlayer player = event.getPlayer();
-        UUID friendUuid = pendingTeleports.remove(player.getUniqueId());
-        if (friendUuid == null) {
-            return;
-        }
-
-        ProxiedPlayer friendPlayer = plugin.getProxy().getPlayer(friendUuid);
-        if (friendPlayer == null) {
-            // L'ami s'est deconnecte pendant le transfert, rien a faire de plus
-            return;
-        }
-        String friendName = friendPlayer.getName();
-
-        // Petit delai de securite pour laisser le canal de plugin-messaging s'initialiser sur le nouveau serveur
-        plugin.getProxy().getScheduler().schedule(plugin, () -> sendTeleportTo(player, friendName), 1, TimeUnit.SECONDS);
-    }
-
-    private void sendTeleportTo(ProxiedPlayer player, String friendName) {
-        Server server = player.getServer();
-        if (server == null) {
-            return;
-        }
-        ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        out.writeUTF("TELEPORT_TO");
-        out.writeUTF(friendName);
-        server.sendData(CrossFriendsPlugin.CHANNEL, out.toByteArray());
     }
 }

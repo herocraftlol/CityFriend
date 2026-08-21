@@ -7,7 +7,7 @@ Petit plugin **Spigot/Paper** à installer sur **chaque serveur backend** (et no
 1. Le joueur tape `/friend gui` (commande gérée par le proxy), **ou** déclenche le menu depuis ce serveur Spigot (voir section suivante).
 2. Le proxy envoie la liste de ses amis (nom, statut, serveur) à ce plugin via un canal de plugin-messaging (`crossfriends:main`).
 3. Ce plugin ouvre un inventaire avec une tête de joueur par ami :
-   - **Clic gauche** sur un ami en ligne → demande au proxy de vous transférer sur son serveur, puis vous téléporte à côté de lui une fois arrivé.
+   - **Clic gauche** sur un ami en ligne → demande au proxy de vous transférer sur son serveur (simple changement de serveur, sans téléportation aux coordonnées de l'ami).
    - **Clic droit** → affiche un message cliquable qui pré-remplit votre chat avec `/msg <ami> ` pour lui écrire directement (aucune saisie de pseudo à refaire).
 
 ## Ouvrir le menu depuis ce serveur (ChestCommands, `/execute as ... run`)
@@ -56,4 +56,3 @@ Le `pom.xml` compile contre `paper-api` (compatible Spigot). Si votre serveur es
 ## Limites connues
 
 - Pas de pagination : au-delà de 54 amis, seuls les 54 premiers sont affichés (à étendre facilement dans `FriendsGuiMessenger`).
-- La téléportation après changement de serveur cible le joueur par son pseudo (`Bukkit.getPlayerExact`) : s'il s'est déconnecté entre-temps, un message d'erreur est affiché à la place.
